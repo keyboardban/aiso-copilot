@@ -68,9 +68,12 @@ pip install -r requirements.txt
 streamlit run app/streamlit_app.py
 ```
 
-In the sidebar keep **Sample Demo** selected and click **🚀 Analyze AI Search
+In the sidebar keep **Sample Demo** selected and click **Analyze AI Search
 Readiness**. The demo audits a bundled (intentionally imperfect) agency service page,
 including Thai seed questions and a sample Search Console CSV — fully offline.
+
+New to the dashboard? **[USER_GUIDE.md](USER_GUIDE.md)** walks through every sidebar
+input and all 11 tabs — what each shows, how to read it, and what to enter.
 
 ### CLI demo
 
