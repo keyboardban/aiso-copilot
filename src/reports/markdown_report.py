@@ -221,7 +221,7 @@ def build_markdown_report(result: dict) -> str:
         add("```")
         add("")
     for warning in schema.get("warnings", []):
-        add(f"> ⚠ {warning}")
+        add(f"> **Note:** {warning}")
     add("")
 
     add("## Search Console Opportunities")
