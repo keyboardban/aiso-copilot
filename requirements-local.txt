@@ -1,0 +1,15 @@
+# AISO Copilot — OPTIONAL local enhancements (still free, but heavier downloads).
+# None of these are required: the app fully works with requirements.txt only,
+# and every feature below degrades gracefully when the package is absent.
+
+-r requirements.txt
+
+# Local embeddings for hybrid retrieval (downloads a small open model once).
+# Enable with AISO_USE_EMBEDDINGS=1 in .env after installing.
+sentence-transformers>=2.7
+
+# Richer structured-data extraction (microdata / RDFa on real pages).
+extruct>=0.17
+
+# Alternative main-content extraction for messy real-world HTML.
+readability-lxml>=0.8.1

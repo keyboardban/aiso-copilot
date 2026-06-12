@@ -1,0 +1,31 @@
+# AISO Copilot — core requirements (all free, no paid SDK required)
+# The analyzer core also has pure-Python fallbacks for sklearn / rank-bm25 /
+# trafilatura, so a partial install still works (see PIPELINE_AND_ARCHITECTURE.md).
+
+# UI
+streamlit>=1.36
+plotly>=5.20
+
+# Optional API backend
+fastapi>=0.110
+uvicorn>=0.29
+
+# Data
+pandas>=2.0
+numpy>=1.26
+pydantic>=2.5
+
+# Fetching & parsing
+requests>=2.31
+beautifulsoup4>=4.12
+lxml>=5.1
+trafilatura>=1.8
+markdown>=3.5
+
+# Retrieval (deterministic, local)
+scikit-learn>=1.4
+rank-bm25>=0.2.2
+
+# Config & tests
+python-dotenv>=1.0
+pytest>=8.0
