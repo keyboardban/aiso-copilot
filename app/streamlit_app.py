@@ -206,6 +206,43 @@ def sc_scatter_chart(df: pd.DataFrame):
                         legend=dict(orientation="h", y=1.08))
 
 
+def hero_header():
+    """Branded page header: oversized title with a terracotta accent."""
+    st.markdown(
+        f"""
+        <div style="padding:0.2rem 0 0.4rem 0">
+          <div style="font-size:2.7rem;font-weight:700;letter-spacing:-0.02em;
+                      line-height:1.05;color:{COLOR['text']}">
+            AISO&nbsp;<span style="color:{COLOR['accent']}">Copilot</span>
+          </div>
+          <div style="font-size:1.05rem;color:#6b6753;margin-top:0.55rem;max-width:58rem">
+            {PROJECT_SUBTITLE}
+          </div>
+          <div style="height:4px;width:76px;background:{COLOR['accent']};
+                      border-radius:2px;margin-top:1rem"></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def section(title: str, description: str = None):
+    """Stand-out section header: terracotta left rule + heavier type."""
+    st.markdown(
+        f"""
+        <div style="display:flex;align-items:baseline;gap:0.6rem;
+                    border-left:4px solid {COLOR['accent']};
+                    padding-left:0.7rem;margin:1.1rem 0 0.45rem 0">
+          <span style="font-size:1.3rem;font-weight:600;letter-spacing:-0.01em;
+                       color:{COLOR['text']}">{title}</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    if description:
+        st.caption(description)
+
+
 def style_status_table(df: pd.DataFrame, status_col: str):
     def colorize(value):
         for status, color in STATUS_COLOR.items():
@@ -356,7 +393,7 @@ def tab_overview(result: dict):
         m1.metric("Questions covered", f"{covered} / {len(matrix)}")
         m2.metric("Word count", f"{result['page']['word_count']:,}")
     with col_bars:
-        st.markdown("##### Subscores (weighted blend — see SCORING_RUBRIC.md)")
+        section("Subscores (weighted blend — see SCORING_RUBRIC.md)")
         if HAS_PLOTLY:
             st.plotly_chart(subscore_chart(subscores, scores.get("weights", {})),
                             width="stretch", config={"displayModeBar": False})
@@ -364,7 +401,7 @@ def tab_overview(result: dict):
             st.bar_chart(pd.Series(subscores))
 
     st.divider()
-    st.markdown("##### Priority actions")
+    section("Priority actions")
     actions = result["priority_actions"]
     if actions:
         for action in actions:
@@ -384,22 +421,22 @@ def tab_structure(result: dict):
     page = result["page"]
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown("##### Strengths")
+        section("Strengths")
         for strength in audit["strengths"] or ["None detected"]:
             st.markdown(f"- {strength}")
     with col2:
-        st.markdown("##### Weaknesses")
+        section("Weaknesses")
         for weakness in audit["weaknesses"] or ["None detected"]:
             st.markdown(f"- {weakness}")
 
-    st.markdown("##### Recommendations")
+    section("Recommendations")
     for recommendation in audit["recommendations"] or ["No structural changes needed."]:
         st.markdown(f"- {recommendation}")
 
     st.divider()
     col_meta, col_headings = st.columns(2)
     with col_meta:
-        st.markdown("##### Title & meta preview")
+        section("Title & meta preview")
         st.markdown(
             f"<div style='border:1px solid #d3d2ca;border-radius:10px;padding:14px;"
             f"background:#ecebe3'>"
@@ -411,7 +448,7 @@ def tab_structure(result: dict):
                    f"{page['readability'].get('flesch_reading_ease', '—')} Flesch "
                    f"({page['readability'].get('avg_sentence_words', 0)} words/sentence avg)")
     with col_headings:
-        st.markdown("##### Extracted headings")
+        section("Extracted headings")
         for level in ("h1", "h2", "h3"):
             for heading in page["headings"].get(level, []):
                 indent = {"h1": "", "h2": "&nbsp;&nbsp;&nbsp;", "h3": "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"}[level]
@@ -430,7 +467,7 @@ def tab_structure(result: dict):
 
 def tab_fanout(result: dict):
     questions = result["query_fanout"]
-    st.markdown(f"##### Query Fan-out — {len(questions)} questions")
+    section(f"Query Fan-out — {len(questions)} questions")
     st.caption(result["input"].get("fanout_note", ""))
     df = pd.DataFrame(questions)
     col_table, col_chart = st.columns([3, 2])
@@ -482,7 +519,7 @@ def tab_coverage(result: dict):
     )
 
     st.divider()
-    st.markdown("##### Content gaps — evidence & recommendations")
+    section("Content gaps — evidence & recommendations")
     show = st.radio("Show", ["Partial + Missing", "All questions"], horizontal=True)
     selected = matrix if show == "All questions" else partial + missing
     for row in selected:
@@ -503,7 +540,7 @@ def tab_coverage(result: dict):
                 st.markdown("*No relevant evidence found on the page.*")
 
     st.divider()
-    st.markdown("##### Simulated AI answers (from page evidence only)")
+    section("Simulated AI answers (from page evidence only)")
     st.caption("How an answer engine might respond using ONLY this page. Template-based in no-LLM mode.")
     for simulation in result["answer_simulations"]:
         with st.expander(f"{simulation['support_level'].title()} support · {simulation['question']}"):
@@ -534,14 +571,14 @@ def tab_sourceability(result: dict):
                 width="stretch", config={"displayModeBar": False})
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown("##### Strong evidence")
+        section("Strong evidence")
         for item in data["strong_evidence"] or ["None detected"]:
             st.markdown(f"- {item}")
     with col2:
-        st.markdown("##### Missing evidence")
+        section("Missing evidence")
         for item in data["missing_evidence"] or ["Nothing missing"]:
             st.markdown(f"- {item}")
-    st.markdown("##### Recommendations")
+    section("Recommendations")
     for recommendation in data["recommendations"] or ["No evidence gaps to fix."]:
         st.markdown(f"- {recommendation}")
 
@@ -566,11 +603,11 @@ def tab_entities(result: dict):
             for category, values in entities.items()]
     st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True, height=500)
     if entity_result["entity_gaps"]:
-        st.markdown("##### Gaps")
+        section("Gaps")
         for gap in entity_result["entity_gaps"]:
             st.markdown(f"- {gap}")
     if entity_result["recommendations"]:
-        st.markdown("##### Recommendations")
+        section("Recommendations")
         for recommendation in entity_result["recommendations"]:
             st.markdown(f"- {recommendation}")
 
@@ -586,7 +623,7 @@ def tab_schema(result: dict):
         c2.markdown("**Recommended**\n\n" + (", ".join(schema["recommended_schema_types"]) or "—"))
         c3.markdown("**Missing**\n\n" + (", ".join(schema["missing_types"]) or "—"))
 
-    st.markdown("##### JSON-LD preview (copy-paste ready)")
+    section("JSON-LD preview (copy-paste ready)")
     if schema["json_ld_preview"]:
         st.code(json.dumps(schema["json_ld_preview"], ensure_ascii=False, indent=2), language="json")
     else:
@@ -619,14 +656,14 @@ def tab_search_console(result: dict):
 
     if opportunities:
         df = pd.DataFrame(opportunities)
-        st.markdown("##### Opportunity landscape")
+        section("Opportunity landscape")
         st.caption("Bubble size = impressions. High-priority opportunities cluster where "
                    "impressions are high but CTR underperforms the position.")
         if HAS_PLOTLY:
             st.plotly_chart(sc_scatter_chart(df), width="stretch",
                             config={"displayModeBar": False})
 
-        st.markdown(f"##### Opportunities ({summary.get('total_opportunities', len(opportunities))})")
+        section(f"Opportunities ({summary.get('total_opportunities', len(opportunities))})")
         table = df[["priority", "query", "opportunity_type", "position", "impressions",
                     "ctr", "reason", "recommended_action"]].copy()
 
@@ -651,7 +688,7 @@ def tab_search_console(result: dict):
 
 def tab_n8n(result: dict):
     blueprint = result["n8n_blueprint"]
-    st.markdown(f"##### {blueprint['workflow_name']}")
+    section(f"{blueprint['workflow_name']}")
     st.caption("Blueprint only — generated as documentation, never connected to a live n8n instance.")
     st.code("  ->  ".join(node["name"] for node in blueprint["nodes"]), language="text")
     st.dataframe(pd.DataFrame(blueprint["nodes"]), width="stretch", hide_index=True)
@@ -662,7 +699,7 @@ def tab_n8n(result: dict):
 
 
 def tab_report(result: dict):
-    st.markdown("##### Client-ready audit report")
+    section("Client-ready audit report")
     report_md = result.get("report_markdown", "")
     blueprint = result["n8n_blueprint"]
     col1, col2, col3, col4 = st.columns(4)
@@ -694,8 +731,7 @@ def tab_raw_json(result: dict):
 def main():
     params = render_sidebar()
 
-    st.title(PROJECT_NAME)
-    st.caption(PROJECT_SUBTITLE)
+    hero_header()
 
     if params["analyze"]:
         with st.spinner("Running the deterministic audit pipeline…"):
