@@ -1,10 +1,28 @@
+# Theme based on Streamlit's Anthropic-inspired example
+# (https://advanced-theming-anthropic.streamlit.app/). Colors and layout values
+# match the reference; the font is Space Grotesk (free, Google Fonts) instead
+# of the reference's Styrene B Trial, which is commercially licensed and can't
+# be redistributed in a public repo.
+
 [theme]
-base = "light"
-primaryColor = "#1d4ed8"
-backgroundColor = "#ffffff"
-secondaryBackgroundColor = "#f6f8fa"
-textColor = "#0f172a"
-font = "sans serif"
+primaryColor = "#bb5a38"
+backgroundColor = "#f4f3ed"
+secondaryBackgroundColor = "#ecebe3"
+textColor = "#3d3a2a"
+linkColor = "#3d3a2a"
+borderColor = "#d3d2ca"
+showWidgetBorder = true
+baseRadius = "0.6rem"
+font = "Space Grotesk:https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap"
+codeFont = "Fira Code:https://fonts.googleapis.com/css2?family=Fira+Code:wght@300..700&display=swap"
+codeBackgroundColor = "#ecebe4"
+showSidebarBorder = true
+headingFontSizes = ["40px", "32px", "24px"]
+headingFontWeights = 500
+
+[theme.sidebar]
+backgroundColor = "#e8e7dd"
+secondaryBackgroundColor = "#ecebe3"
 
 [browser]
 gatherUsageStats = false

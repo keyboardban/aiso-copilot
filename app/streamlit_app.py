@@ -38,13 +38,16 @@ st.set_page_config(page_title=PROJECT_NAME, layout="wide")
 # Visual language: one palette, no emojis, semantic colors only.
 # ---------------------------------------------------------------------------- #
 
+# Earthy palette tuned for the Anthropic-inspired cream theme (.streamlit/config.toml)
 COLOR = {
-    "strong": "#15803d",   # green  — >= 80
-    "moderate": "#1d4ed8", # blue   — 60–79
-    "developing": "#b45309",  # amber — 40–59
-    "weak": "#b91c1c",     # red    — < 40
-    "muted": "#94a3b8",
-    "grid": "#e2e8f0",
+    "strong": "#3f7a4e",      # muted green   — >= 80
+    "moderate": "#4a6fa5",    # dusty blue    — 60–79
+    "developing": "#bf8b2e",  # ochre         — 40–59
+    "weak": "#b3402e",        # brick red     — < 40
+    "accent": "#bb5a38",      # terracotta (theme primary) for neutral bars
+    "muted": "#a8a394",
+    "grid": "#dedcd1",
+    "text": "#3d3a2a",
 }
 STATUS_COLOR = {"Covered": COLOR["strong"], "Partial": COLOR["developing"], "Missing": COLOR["weak"]}
 PRIORITY_TEXT = {"high": ":red[HIGH]", "medium": ":orange[MEDIUM]", "low": ":green[LOW]"}
@@ -73,8 +76,10 @@ def _base_layout(fig, height: int = 300, **kwargs):
         template="plotly_white",
         height=height,
         margin=dict(l=10, r=10, t=30, b=10),
-        font=dict(family="Inter, -apple-system, Segoe UI, sans-serif", size=13,
-                  color="#0f172a"),
+        font=dict(family="Space Grotesk, -apple-system, Segoe UI, sans-serif",
+                  size=13, color=COLOR["text"]),
+        paper_bgcolor="rgba(0,0,0,0)",  # blend with the cream theme background
+        plot_bgcolor="rgba(0,0,0,0)",
         showlegend=kwargs.pop("showlegend", False),
         **kwargs,
     )
@@ -86,16 +91,16 @@ def gauge_chart(value: int, title: str):
         mode="gauge+number",
         value=value,
         number={"suffix": " / 100", "font": {"size": 36}},
-        title={"text": title, "font": {"size": 14, "color": "#475569"}},
+        title={"text": title, "font": {"size": 14, "color": "#6b6753"}},
         gauge={
             "axis": {"range": [0, 100], "tickwidth": 1, "tickcolor": COLOR["muted"]},
             "bar": {"color": band_color(value), "thickness": 0.28},
             "borderwidth": 0,
             "steps": [
-                {"range": [0, 40], "color": "rgba(185, 28, 28, 0.10)"},
-                {"range": [40, 60], "color": "rgba(180, 83, 9, 0.10)"},
-                {"range": [60, 80], "color": "rgba(29, 78, 216, 0.10)"},
-                {"range": [80, 100], "color": "rgba(21, 128, 61, 0.12)"},
+                {"range": [0, 40], "color": "rgba(179, 64, 46, 0.12)"},
+                {"range": [40, 60], "color": "rgba(191, 139, 46, 0.12)"},
+                {"range": [60, 80], "color": "rgba(74, 111, 165, 0.12)"},
+                {"range": [80, 100], "color": "rgba(63, 122, 78, 0.14)"},
             ],
         },
     ))
@@ -147,7 +152,7 @@ def hbar_chart(series: pd.Series, color=None, height: int = 280, color_map: dict
     fig = go.Figure(go.Bar(
         x=series.values, y=[str(i).replace("_", " ") for i in series.index],
         orientation="h",
-        marker=dict(color=color if color is not None else COLOR["moderate"]),
+        marker=dict(color=color if color is not None else COLOR["accent"]),
         text=series.values, textposition="outside",
         hovertemplate="%{y}: %{x}<extra></extra>",
     ))
@@ -396,8 +401,8 @@ def tab_structure(result: dict):
     with col_meta:
         st.markdown("##### Title & meta preview")
         st.markdown(
-            f"<div style='border:1px solid #e2e8f0;border-radius:8px;padding:14px;"
-            f"background:#fafbfc'>"
+            f"<div style='border:1px solid #d3d2ca;border-radius:10px;padding:14px;"
+            f"background:#ecebe3'>"
             f"<div style='color:#1a0dab;font-size:1.05em'>{page['title'] or '(no title)'}</div>"
             f"<div style='color:#006621;font-size:0.85em'>{page.get('url') or 'example.com'}</div>"
             f"<div style='color:#545454;font-size:0.9em'>{page['meta_description'] or '(no meta description)'}</div>"
