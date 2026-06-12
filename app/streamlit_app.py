@@ -162,9 +162,9 @@ def hbar_chart(series: pd.Series, color=None, height: int = 280, color_map: dict
 
 
 def entity_weight_chart(score_breakdown: dict, full_weights: dict):
-    """One bar per category: bar length = how many clarity points the category
-    is worth; color = whether the page earned them (each category is
-    all-or-nothing, so longer red bars are the most valuable things missing)."""
+    """Diverging bar chart: earned categories extend right (green), missed
+    categories extend left (red) from a zero baseline. Bar length = how many
+    clarity points the category is worth (all-or-nothing per category)."""
     items = sorted(full_weights.items(), key=lambda kv: -kv[1])
     fig = go.Figure()
     for detected, name, color in ((True, "Detected — points earned", COLOR["strong"]),
@@ -172,23 +172,31 @@ def entity_weight_chart(score_breakdown: dict, full_weights: dict):
         group = [(c, w) for c, w in items if bool(score_breakdown.get(c, 0)) == detected]
         if not group:
             continue
+        sign = 1 if detected else -1
         fig.add_bar(
-            x=[w for _, w in group],
+            x=[sign * w for _, w in group],
             y=[c.replace("_", " ").title() for c, _ in group],
             orientation="h", width=0.6, name=name,
             marker=dict(color=color),
             text=[f"{'+' if detected else '−'}{w} pts" for _, w in group],
             textposition="outside",
-            hovertemplate="%{y}: worth %{x} pts — " + name.lower() + "<extra></extra>",
+            customdata=[w for _, w in group],
+            hovertemplate="%{y}: worth %{customdata} pts — " + name.lower() + "<extra></extra>",
         )
     max_w = max(full_weights.values())
-    fig.update_xaxes(title_text="clarity points at stake per category",
-                     showgrid=True, gridcolor=COLOR["grid"], zeroline=False,
-                     range=[0, max_w * 1.25])
+    span = max_w * 1.35
+    ticks = [t for t in (-15, -10, -5, 0, 5, 10, 15) if abs(t) <= max_w]
+    fig.update_xaxes(
+        title_text="← points missed   ·   points earned →",
+        range=[-span, span],
+        tickvals=ticks, ticktext=[str(abs(t)) for t in ticks],
+        showgrid=True, gridcolor=COLOR["grid"],
+        zeroline=True, zerolinecolor=COLOR["muted"], zerolinewidth=1.5,
+    )
     fig.update_yaxes(categoryorder="array",
                      categoryarray=[c.replace("_", " ").title() for c, _ in items][::-1],
                      ticksuffix="  ")
-    return _base_layout(fig, height=360, showlegend=True,
+    return _base_layout(fig, height=380, barmode="relative", showlegend=True,
                         legend=dict(orientation="h", y=1.12))
 
 
@@ -610,10 +618,10 @@ def tab_entities(result: dict):
 
             st.plotly_chart(entity_weight_chart(entity_result["score_breakdown"], CLARITY_WEIGHTS),
                             width="stretch", config={"displayModeBar": False})
-            st.caption("Bar length = how many of the 100 clarity points that category is "
-                       "worth. Green = detected on the page (points earned); red = not "
-                       "detected (points missed). The longest red bars are your most "
-                       "valuable fixes.")
+            st.caption("Diverging from zero: green bars to the right are points earned "
+                       "(category detected on the page); red bars to the left are points "
+                       "missed. Bar length = how many of the 100 clarity points the "
+                       "category is worth — the longest red bars are your most valuable fixes.")
 
     rows = [{"entity type": category.replace("_", " ").title(),
              "detected": "; ".join(map(str, values)) if values else "—"}
