@@ -239,10 +239,13 @@ that stays your job).
 and where* — 13 entity categories extracted by deterministic rules (JSON-LD, lexicons,
 sentence patterns).
 
-- **Score + earned-vs-available chart:** each category's clarity points. Gray track =
-  available weight, green = earned, red = missed. Weights: brand 15, services 15,
-  audiences 12, problems 10, solutions 10, benefits 8, proof points 8, locations 6,
-  industries 6, metrics 6, tools 4 (products/organization are shown but unweighted).
+- **Score + points-at-stake chart:** one bar per category. Bar length = how many of
+  the 100 clarity points that category is worth; green = detected on the page (points
+  earned), red = not detected (points missed). Each category is all-or-nothing, so
+  **the longest red bars are your most valuable fixes**. Weights: brand 15,
+  services 15, audiences 12, problems 10, solutions 10, benefits 8, proof points 8,
+  locations 6, industries 6, metrics 6, tools 4 (products/organization are shown but
+  unweighted).
 - **Table:** what was actually detected per category — verify this! If your brand is
   missing or wrong, the page (not the tool) is being ambiguous.
 - **Gaps / Recommendations:** the empty categories that matter most, and how to fix
