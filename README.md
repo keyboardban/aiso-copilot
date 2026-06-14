@@ -194,10 +194,11 @@ outputs/                  # generated reports / workflows / runs (gitignored)
 tests/                    # 32 offline tests
 ```
 
-Architecture details: [PIPELINE_AND_ARCHITECTURE.md](PIPELINE_AND_ARCHITECTURE.md).
-For the full narrative — how it works, what improved, problems solved & open,
-evaluation, roadmap, and an interview script — see
-**[PROJECT_DEEP_DIVE.md](PROJECT_DEEP_DIVE.md)**.
+Architecture: [PIPELINE_AND_ARCHITECTURE.md](PIPELINE_AND_ARCHITECTURE.md) (layers)
+· **[ARCHITECTURE_DETAILED.md](ARCHITECTURE_DETAILED.md)** (all 19 pipeline stages
+with per-stage input/output contracts). For the full narrative — how it works,
+what improved, problems solved & open, evaluation, roadmap, and an interview
+script — see **[PROJECT_DEEP_DIVE.md](PROJECT_DEEP_DIVE.md)**.
 
 ## Honest limitations
 
