@@ -118,20 +118,29 @@ tier — which can also serve the FastAPI backend via `uvicorn api.server:app`.)
 
 | Mode | Cost | What it adds | What happens if it fails |
 |---|---|---|---|
-| **No LLM** (default) | $0, no key | Nothing — full audit runs deterministically | n/a — this *is* the fallback |
-| **OpenRouter** | $0 if **you** pick a free model slug | Extra fan-out questions, nicer answer simulations, polished executive summary | Any auth/quota/provider error → silent fallback to templates |
-| **Ollama** | $0, local | Same as above, fully local | Server unreachable → silent fallback |
+| **OpenRouter** (default) | $0 with free model slugs | **Multi-agent** fan-out — several free models each generate questions, merged & deduped — plus nicer answer simulations and a polished summary | Any auth/quota/provider error → silent per-model fallback, then to templates |
+| **No LLM** | $0, no key | Nothing — full audit runs deterministically | n/a — this *is* the fallback |
+| **Ollama** | $0, local | Same as OpenRouter, fully local | Server unreachable → silent fallback |
+
+**Where do I put my API key?** Either:
+- the sidebar **OpenRouter API key** field (shown by default), or
+- `OPENROUTER_API_KEY` in your `.env` (copy from `.env.example`).
+
+Free key: [openrouter.ai/keys](https://openrouter.ai/keys). The multi-agent panel is
+pre-filled with free (`:free`) models you can edit; browse current ones at
+[openrouter.ai/models](https://openrouter.ai/models) (filter: Free).
 
 Hard rules baked into the code:
 
-- OpenRouter is **never called by default** and **no model slug is hardcoded** — you
-  supply both the key and the model (pick a `:free` slug on openrouter.ai/models).
-- LLMs are used **only** for additive polish. Scoring, extraction, retrieval, coverage,
-  and schema logic are 100% deterministic and LLM-free.
-- A missing key, missing model, or any API error can never crash the app — providers
-  return `None` and the template path takes over (see `tests/test_llm_fallback.py`).
-
-Configuration via `.env` (copy `.env.example`) or directly in the sidebar.
+- **No key needed to run.** OpenRouter is the default mode, but with no key the app
+  falls back to deterministic templates automatically — it never *requires* OpenRouter.
+- **No paid model is ever a default.** Every bundled slug ends in `:free`, and models
+  are only called when you supply a key and select OpenRouter.
+- LLMs are used **only** for additive question generation and polish. Scoring,
+  extraction, retrieval, coverage, and schema are 100% deterministic and LLM-free.
+- A missing key, stale slug, or any API error can never crash the app — providers
+  return `None` and the template path takes over (see `tests/test_llm_fallback.py`,
+  `tests/test_multi_agent.py`).
 
 ## Free-first design
 

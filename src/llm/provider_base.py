@@ -20,7 +20,48 @@ from src.config import (
     OLLAMA_MODEL,
     OPENROUTER_API_KEY,
     OPENROUTER_MODEL,
+    OPENROUTER_MODELS,
 )
+
+
+def provider_label(provider) -> str:
+    """Readable source tag for a provider, e.g. 'openrouter:llama-3.3-70b'.
+
+    Used to tag which model produced each fan-out question in multi-agent mode.
+    """
+    mode = getattr(provider, "mode", "llm")
+    model = getattr(provider, "model", "") or ""
+    if not model:
+        return mode
+    short = model.split("/")[-1].replace(":free", "")
+    return f"{mode}:{short}"
+
+
+def build_openrouter_agents(api_key: str = None, models=None) -> list:
+    """Build one OpenRouterProvider per model slug for multi-agent fan-out.
+
+    Returns [] when no API key is available (→ deterministic templates). Each
+    agent fails independently: a bad/stale slug just yields no questions, it
+    never breaks the others or the app.
+    """
+    from src.llm.openrouter_provider import OpenRouterProvider
+
+    key = (api_key or OPENROUTER_API_KEY or "").strip()
+    if not key:
+        return []
+    slugs = models if models else OPENROUTER_MODELS
+    if isinstance(slugs, str):
+        from src.config import _parse_model_list
+
+        slugs = _parse_model_list(slugs)
+    agents = []
+    seen = set()
+    for slug in slugs:
+        slug = (slug or "").strip()
+        if slug and slug not in seen:
+            seen.add(slug)
+            agents.append(OpenRouterProvider(api_key=key, model=slug))
+    return agents
 
 
 class LLMProvider(ABC):

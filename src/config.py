@@ -37,13 +37,50 @@ MODE_OPENROUTER = "openrouter"
 MODE_OLLAMA = "ollama"
 VALID_LLM_MODES = (MODE_NO_LLM, MODE_OPENROUTER, MODE_OLLAMA)
 
-LLM_MODE_DEFAULT = get_env("LLM_MODE", MODE_NO_LLM).lower()
+# Default LLM mode. OpenRouter is the preferred default for richer multi-agent
+# question generation; it is still 100% safe with no key — get_provider() falls
+# back to no_llm automatically, so the app never requires OpenRouter to run.
+LLM_MODE_DEFAULT = get_env("LLM_MODE", MODE_OPENROUTER).lower()
 if LLM_MODE_DEFAULT not in VALID_LLM_MODES:
-    LLM_MODE_DEFAULT = MODE_NO_LLM
+    LLM_MODE_DEFAULT = MODE_OPENROUTER
 
 OPENROUTER_API_KEY = get_env("OPENROUTER_API_KEY")
-OPENROUTER_MODEL = get_env("OPENROUTER_MODEL")  # never hardcode a model here
+OPENROUTER_MODEL = get_env("OPENROUTER_MODEL")  # single-model override (optional)
 OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
+
+# Default FREE model slugs (all end in ":free") used for multi-agent question
+# generation. Every one is a free-tier model verified on openrouter.ai; the user
+# can edit this list in the UI or via OPENROUTER_MODELS. No paid model is ever a
+# default, and these are only ever called when the user supplies an API key and
+# selects OpenRouter mode. Free-tier availability changes over time — if a slug
+# 404s it is simply skipped (graceful per-model fallback).
+OPENROUTER_FREE_MODELS_DEFAULT = [
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "qwen/qwen3-next-80b-a3b-instruct:free",   # strong multilingual (good for Thai)
+    "google/gemma-4-31b-it:free",
+]
+
+
+def _parse_model_list(raw: str) -> list:
+    """Parse a newline/comma-separated list of model slugs."""
+    if not raw:
+        return []
+    parts = raw.replace(",", "\n").splitlines()
+    out, seen = [], set()
+    for part in parts:
+        slug = part.strip()
+        if slug and slug not in seen:
+            seen.add(slug)
+            out.append(slug)
+    return out
+
+
+# Multi-agent model list: OPENROUTER_MODELS (plural) > OPENROUTER_MODEL > defaults.
+OPENROUTER_MODELS = (
+    _parse_model_list(get_env("OPENROUTER_MODELS"))
+    or _parse_model_list(OPENROUTER_MODEL)
+    or list(OPENROUTER_FREE_MODELS_DEFAULT)
+)
 
 OLLAMA_BASE_URL = get_env("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL = get_env("OLLAMA_MODEL")
@@ -84,7 +121,8 @@ COVERED_THRESHOLD = 0.55
 PARTIAL_THRESHOLD = 0.40
 
 # --- Fan-out ------------------------------------------------------------------
-MAX_FANOUT_QUESTIONS = 36
+MAX_FANOUT_QUESTIONS = 48  # higher cap leaves room for multi-agent LLM questions
+MAX_QUESTIONS_PER_AGENT = 6  # per-model cap so no single agent dominates the set
 MAX_SEED_QUESTIONS = 30
 ANSWER_SIM_MAX_QUESTIONS = 8
 

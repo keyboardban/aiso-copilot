@@ -29,13 +29,20 @@ def generate_fanout(
     seeds: list = None,
     entities: dict = None,
     llm=None,
+    agents: list = None,
     max_questions: int = MAX_FANOUT_QUESTIONS,
 ) -> dict:
-    """Return {"seed_questions", "fanout_questions", "llm_used", "llm_note"}.
+    """Return {"seed_questions", "fanout_questions", "llm_used", "llm_note", "agents_used"}.
 
     fanout_questions entries are {"question", "intent", "source"} where source
-    is seed | template | openrouter | ollama. ("seed" is a documented addition
-    to the spec enum so seed questions flow through coverage scoring too.)
+    is seed | template | openrouter:<model> | ollama:<model>. ("seed" is a
+    documented addition to the spec enum so seed questions flow through coverage
+    scoring too.)
+
+    Multi-agent: when ``agents`` (a list of providers) is given, each provider
+    generates questions independently and the results are merged & deduplicated
+    for diversity. ``llm`` (single provider) is the back-compatible fallback.
+    Either way, any provider failure silently leaves the deterministic set intact.
     """
     topic = (topic or "").strip() or "AI Search Optimization"
     audience = (audience or "").strip() or "businesses"
@@ -79,31 +86,56 @@ def generate_fanout(
         for template, intent in BRAND_TEMPLATES:
             add(template.format(topic=topic, brand=brand), intent, "template")
 
-    # 3) optional LLM extras — additive only, never required
+    # 3) optional LLM extras — additive only, never required.
+    #    Multi-agent: each provider is an independent "agent" generating
+    #    questions; results merge & dedupe for diversity.
+    from src.config import MAX_QUESTIONS_PER_AGENT
+    from src.llm.provider_base import provider_label
+
+    providers = [p for p in (agents or []) if p is not None]
+    if not providers and llm is not None:
+        providers = [llm]
+    providers = [p for p in providers
+                 if getattr(p, "mode", "no_llm") != "no_llm" and p.available()]
+
     llm_used = False
     llm_note = "Deterministic templates only (no-LLM mode)."
-    if llm is not None and getattr(llm, "mode", "no_llm") != "no_llm" and llm.available():
+    if providers:
         from src.llm.prompt_builder import build_fanout_prompt, parse_question_lines
 
-        response = llm.complete(build_fanout_prompt(topic, audience, seed_questions))
-        if response:
+        prompt = build_fanout_prompt(topic, audience, seed_questions)
+        contributions = []  # (label, count)
+        failures = []
+        for provider in providers:
+            label = provider_label(provider)
+            if len(questions) >= max_questions:
+                break
+            response = provider.complete(prompt)
+            if not response:
+                failures.append(label)
+                continue
             added = 0
             for question in parse_question_lines(response):
-                if len(questions) >= max_questions:
+                if added >= MAX_QUESTIONS_PER_AGENT or len(questions) >= max_questions:
                     break
-                if add(question, classify_intent(question), llm.mode):
+                if add(question, classify_intent(question), label):
                     added += 1
             if added:
-                llm_used = True
-                llm_note = f"Templates + {added} extra question(s) from {llm.mode}."
-            else:
-                llm_note = f"{llm.mode} returned no usable questions; using templates only."
-        else:
-            llm_note = f"{llm.mode} unavailable or errored; fell back to templates."
+                contributions.append((label, added))
+
+        if contributions:
+            llm_used = True
+            parts = ", ".join(f"{count} from {label}" for label, count in contributions)
+            llm_note = f"Templates + {parts}."
+            if failures:
+                llm_note += f" (skipped: {', '.join(failures)})"
+        elif failures:
+            llm_note = f"All agents unavailable/errored ({', '.join(failures)}); fell back to templates."
 
     return {
         "seed_questions": seed_questions,
         "fanout_questions": questions[:max_questions],
         "llm_used": llm_used,
         "llm_note": llm_note,
+        "agents_used": [provider_label(p) for p in providers],
     }

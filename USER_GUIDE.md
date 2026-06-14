@@ -94,13 +94,28 @@ to see the feature with demo data.
 
 | Option | What it does | What you need |
 |---|---|---|
-| **No LLM (default)** | The complete audit, fully deterministic | Nothing |
-| **OpenRouter** | Adds extra fan-out questions, nicer answer simulations, and a polished executive summary | An OpenRouter API key **and** a model slug you choose (pick a free one — slugs ending in `:free` on openrouter.ai/models) |
+| **OpenRouter (default)** | **Multi-agent** fan-out: several free models each generate questions (merged & deduped), plus nicer answer simulations and a polished summary | A free OpenRouter API key. Free models are pre-filled; edit if you like. |
+| **No LLM** | The complete audit, fully deterministic | Nothing |
 | **Ollama** | Same extras, fully local | A running Ollama server; model field can stay empty (first installed model is used) |
 
-**Important:** LLMs never touch the scores. If the key is missing or the model errors
-out, the app silently continues in deterministic mode and tells you so in the
-Overview tab's status line.
+**Where to put your API key (OpenRouter mode):**
+1. **Sidebar field** "OpenRouter API key" — paste your key (get one free at
+   [openrouter.ai/keys](https://openrouter.ai/keys)), **or**
+2. leave it blank and set `OPENROUTER_API_KEY` in your `.env` file (it shows
+   "loaded from .env ✓" when detected).
+
+**The multi-agent panel.** Below the key is a "Free models (one per line)" box,
+pre-filled with three free models. Each is queried independently and their
+questions are pooled — more models = more diverse questions (and a bit more wait).
+All defaults end in `:free`; browse current free models at
+[openrouter.ai/models](https://openrouter.ai/models) (filter: Free). A stale or
+rate-limited model is simply skipped — it never blocks the others.
+
+**Important:** LLMs never touch the scores — they only *add* questions and polish
+wording. With **no key**, OpenRouter mode silently falls back to deterministic
+templates (the app still produces a full audit) and says so in the Overview status
+line and the Query Fan-out caption. You can see exactly which model produced each
+question in the **Query Fan-out** tab's `source` column.
 
 ### The Analyze button
 

@@ -22,7 +22,10 @@ from src.automation.n8n_blueprint_generator import generate_n8n_blueprint, write
 from src.config import (
     ANSWER_SIM_MAX_QUESTIONS,
     MODE_NO_LLM,
+    MODE_OPENROUTER,
+    OPENROUTER_MODELS,
     PROJECT_NAME,
+    _parse_model_list,
     ensure_output_dirs,
 )
 from src.crawler.extract_content import extract_content
@@ -30,7 +33,7 @@ from src.crawler.fetch_page import fetch_page
 from src.input.sample_loader import load_sample
 from src.input.validators import parse_seed_questions, validate_pasted_content, validate_url
 from src.llm.prompt_builder import ANSWER_SYSTEM, POLISH_SYSTEM, build_answer_prompt, build_polish_prompt
-from src.llm.provider_base import get_provider
+from src.llm.provider_base import build_openrouter_agents, get_provider
 from src.query.fanout_generator import generate_fanout
 from src.reports.json_exporter import export_json
 from src.reports.markdown_report import build_executive_summary, build_markdown_report
@@ -167,11 +170,27 @@ def run_analysis(
     Returns the full result object (spec §10 schema plus documented extras).
     On unrecoverable input errors returns {"ok": False, "error", "suggestion"}.
     """
-    # --- 1. resolve LLM provider (never required, never fails) ---------------
+    # --- 1. resolve LLM provider(s) (never required, never fails) ------------
+    # openrouter_model may be a single slug, a newline/comma list, or a list.
+    if isinstance(openrouter_model, (list, tuple)):
+        requested_models = [str(m).strip() for m in openrouter_model if str(m).strip()]
+    else:
+        requested_models = _parse_model_list(openrouter_model or "")
+    models = requested_models or list(OPENROUTER_MODELS)
+
+    # primary single provider drives answer simulation + report polish
     llm, llm_status = get_provider(
-        llm_mode, api_key=openrouter_api_key, model=openrouter_model,
+        llm_mode, api_key=openrouter_api_key, model=(models[0] if models else None),
         base_url=ollama_base_url, ollama_model=ollama_model,
     )
+
+    # multi-agent fan-out: one provider per free model (only when OpenRouter + key)
+    fanout_agents = []
+    if llm_mode == MODE_OPENROUTER:
+        fanout_agents = build_openrouter_agents(openrouter_api_key, models)
+        if len(fanout_agents) > 1:
+            names = ", ".join(m.split("/")[-1].replace(":free", "") for m in models)
+            llm_status = f"OpenRouter multi-agent mode — {len(fanout_agents)} models: {names}. Errors fall back per-model, then to templates."
 
     # --- 2. acquire content ---------------------------------------------------
     effective_type = source_type
@@ -217,7 +236,8 @@ def run_analysis(
     else:
         seeds = [s.strip() for s in (seed_questions or []) if s and s.strip()]
 
-    fanout = generate_fanout(topic, audience, seeds, entity_result["entities"], llm=llm)
+    fanout = generate_fanout(topic, audience, seeds, entity_result["entities"],
+                             llm=llm, agents=fanout_agents)
     chunks = build_chunks(page)
     coverage = evaluate_coverage(chunks, fanout["fanout_questions"])
     sourceability_result = assess_sourceability(page, entity_result)
@@ -264,6 +284,7 @@ def run_analysis(
             "llm_active": llm.mode != MODE_NO_LLM,
             "llm_status": llm_status,
             "fanout_note": fanout["llm_note"],
+            "fanout_agents": fanout.get("agents_used", []),
         },
         "page": {
             "title": page["title"],

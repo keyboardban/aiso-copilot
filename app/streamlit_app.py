@@ -4,8 +4,9 @@ Run from the project root:
 
     streamlit run app/streamlit_app.py
 
-Free-first: the default flow (Sample Demo + No-LLM mode) needs no API key,
-no internet, and no billing of any kind.
+Free-first: OpenRouter multi-agent mode is the default, but with no API key the
+app falls back to deterministic templates — so it always runs free, offline, and
+with no billing of any kind.
 """
 
 import json
@@ -20,7 +21,15 @@ import pandas as pd
 import streamlit as st
 
 from src.automation.n8n_blueprint_generator import blueprint_markdown
-from src.config import MODE_NO_LLM, MODE_OLLAMA, MODE_OPENROUTER, PROJECT_NAME, PROJECT_SUBTITLE
+from src.config import (
+    MODE_NO_LLM,
+    MODE_OLLAMA,
+    MODE_OPENROUTER,
+    OPENROUTER_API_KEY,
+    OPENROUTER_FREE_MODELS_DEFAULT,
+    PROJECT_NAME,
+    PROJECT_SUBTITLE,
+)
 from src.input.sample_loader import demo_defaults, list_samples, sample_search_console_path
 from src.reports.json_exporter import to_json_string
 from src.services.analyzer import run_analysis
@@ -54,9 +63,11 @@ PRIORITY_TEXT = {"high": ":red[HIGH]", "medium": ":orange[MEDIUM]", "low": ":gre
 SUPPORT_TEXT = {"strong": ":green[Strong support]", "medium": ":orange[Medium support]",
                 "weak": ":red[Weak support]"}
 
+# OpenRouter is the default option (first). The audit still runs fully without
+# a key — it falls back to deterministic templates automatically.
 LLM_MODE_OPTIONS = {
-    "No LLM — free deterministic mode (default)": MODE_NO_LLM,
-    "OpenRouter — optional free model (your slug)": MODE_OPENROUTER,
+    "OpenRouter — free multi-agent models (default)": MODE_OPENROUTER,
+    "No LLM — free deterministic mode": MODE_NO_LLM,
     "Ollama — optional local model": MODE_OLLAMA,
 }
 
@@ -333,21 +344,32 @@ def render_sidebar() -> dict:
 
     st.sidebar.divider()
     llm_label = st.sidebar.radio("LLM mode", list(LLM_MODE_OPTIONS.keys()),
-                                 help="The audit is fully deterministic; LLMs only add optional polish.")
+                                 help="Core scoring is always deterministic; LLMs only add extra fan-out questions and polish.")
     params["llm_mode"] = LLM_MODE_OPTIONS[llm_label]
     params["openrouter_model"] = params["openrouter_key"] = None
     params["ollama_url"] = params["ollama_model"] = None
     if params["llm_mode"] == MODE_OPENROUTER:
-        params["openrouter_model"] = st.sidebar.text_input(
-            "OpenRouter model slug (pick a FREE model)",
-            placeholder="e.g. a ':free' slug from openrouter.ai/models",
-            help="You choose the model. Nothing is hardcoded; free-tier slugs end in ':free'.",
-        )
+        env_key = bool(OPENROUTER_API_KEY)
         params["openrouter_key"] = st.sidebar.text_input(
-            "OpenRouter API key", type="password",
-            help="Leave empty to use OPENROUTER_API_KEY from .env. Missing key = automatic no-LLM fallback.",
+            "OpenRouter API key",
+            type="password",
+            value="",
+            placeholder=("loaded from .env ✓ (leave blank)" if env_key
+                         else "sk-or-... — paste your key here"),
+            help="Get a free key at openrouter.ai/keys. Leave blank to use OPENROUTER_API_KEY "
+                 "from .env. No key = automatic no-LLM fallback (the app still works).",
         )
-        st.sidebar.caption("Optional. Any quota/auth/provider error falls back to deterministic mode.")
+        params["openrouter_model"] = st.sidebar.text_area(
+            "Free models (one per line) — the multi-agent panel",
+            value="\n".join(OPENROUTER_FREE_MODELS_DEFAULT),
+            height=110,
+            help="Each model is queried independently and their questions are merged. "
+                 "All defaults are free-tier (':free'). Edit freely; browse current free "
+                 "models at openrouter.ai/models (filter: Free). Stale slugs are skipped.",
+        )
+        key_state = "key from .env" if env_key else "no key yet → will fall back to templates"
+        st.sidebar.caption(f"Multi-agent question generation · {key_state}. "
+                           "Any quota/auth error falls back per-model, then to deterministic mode.")
     elif params["llm_mode"] == MODE_OLLAMA:
         params["ollama_url"] = st.sidebar.text_input("Ollama base URL", value="http://localhost:11434")
         params["ollama_model"] = st.sidebar.text_input(
