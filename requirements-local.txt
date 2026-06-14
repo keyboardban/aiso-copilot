@@ -13,3 +13,9 @@ extruct>=0.17
 
 # Alternative main-content extraction for messy real-world HTML.
 readability-lxml>=0.8.1
+
+# Thai word segmentation (newmm engine). When installed, Thai text is tokenized
+# into real words instead of character trigrams (src/utils/text.py auto-detects
+# it via THAI_TOKENIZER). Pure-Python, no model download. Falls back to trigrams
+# when absent.
+pythainlp>=4.0

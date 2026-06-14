@@ -24,7 +24,13 @@ from src.config import (
 from src.retrieval.bm25_retriever import BM25Retriever
 from src.retrieval.embedding_retriever import EmbeddingRetriever
 from src.retrieval.tfidf_retriever import TfidfRetriever
-from src.utils.text import THAI_STOP_SUBSTRINGS, STOPWORDS_EN, tokenize, truncate
+from src.utils.text import (
+    STOPWORDS_EN,
+    THAI_STOP_SUBSTRINGS,
+    THAI_TOKENIZER,
+    tokenize,
+    truncate,
+)
 
 _RECOMMENDATION_BY_INTENT = {
     "definition": "Add a concise 2–3 sentence definition that answers this directly, ideally under a question-style heading near the top of the page.",
@@ -45,14 +51,24 @@ _LATIN_RE = re.compile(r"[a-z0-9][a-z0-9'\-]*")
 
 
 def _display_terms(question: str) -> list:
-    """Human-readable content terms of a question: Latin words plus whole Thai
-    segments (after stop-particle removal), used for gap explanations."""
+    """Human-readable content terms of a question: Latin words plus Thai content
+    terms, used for the overlap signal and gap explanations.
+
+    With newmm, Thai terms are real words (cleanly displayable as missing
+    terms); with the trigram fallback they are coarse stop-particle-split
+    segments, matching the tokenizer's notion of a Thai unit in each mode.
+    """
     text = (question or "").lower()
     terms = [t for t in _LATIN_RE.findall(text) if t not in STOPWORDS_EN]
-    for run in _THAI_RUN_RE.findall(text):
-        for stop in THAI_STOP_SUBSTRINGS:
-            run = run.replace(stop, " ")
-        terms.extend(part for part in run.split() if len(part) >= 3)
+    if THAI_TOKENIZER == "newmm":
+        # real Thai words from the tokenizer (drop very short particles)
+        terms += [t for t in tokenize(text, remove_stopwords=True)
+                  if _THAI_RUN_RE.match(t) and len(t) >= 2]
+    else:
+        for run in _THAI_RUN_RE.findall(text):
+            for stop in THAI_STOP_SUBSTRINGS:
+                run = run.replace(stop, " ")
+            terms.extend(part for part in run.split() if len(part) >= 3)
     seen, unique = set(), []
     for term in terms:
         if term not in seen:
@@ -63,6 +79,9 @@ def _display_terms(question: str) -> list:
 
 def _term_present(term: str, token_set: set) -> bool:
     if _THAI_RUN_RE.match(term):
+        if THAI_TOKENIZER == "newmm":
+            # query terms and chunk tokens are segmented the same way → exact match
+            return term in token_set
         grams = [term[i : i + 3] for i in range(max(1, len(term) - 2))]
         hits = sum(1 for g in grams if g in token_set)
         return hits / len(grams) >= 0.5

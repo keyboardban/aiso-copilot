@@ -15,17 +15,75 @@ FANOUT_SYSTEM = (
     "Output plain questions, one per line, no numbering, no commentary."
 )
 
+# Few-shot exemplars: worked (topic, audience -> questions) pairs that show the
+# desired shape — a mix of buying-stage and learning-stage questions, one per
+# line, no numbering. Using a different domain than the audit's keeps the model
+# pattern-matching on form rather than copying content.
+FANOUT_SHOTS = [
+    {
+        "topic": "managed cloud hosting",
+        "audience": "e-commerce startups",
+        "questions": [
+            "What is managed cloud hosting and how is it different from regular hosting?",
+            "How much does managed cloud hosting cost for a small online store?",
+            "Can managed hosting handle traffic spikes during a flash sale?",
+            "What should I look for when choosing a managed hosting provider?",
+            "How do I migrate my store to managed hosting without downtime?",
+            "Is managed hosting worth it versus hiring a DevOps engineer?",
+        ],
+    },
+    {
+        "topic": "dental implants",
+        "audience": "adults aged 40-60",
+        "questions": [
+            "What are dental implants and how do they work?",
+            "How long do dental implants last compared to dentures?",
+            "How much do dental implants cost and does insurance cover them?",
+            "Is the dental implant procedure painful?",
+            "Who is a good candidate for dental implants?",
+            "How do I care for dental implants after surgery?",
+        ],
+    },
+]
 
-def build_fanout_prompt(topic: str, audience: str, seeds: list = None) -> str:
+
+def _format_shot(shot: dict) -> str:
+    questions = "\n".join(shot["questions"])
+    return (
+        f"Topic: {shot['topic']}\nAudience: {shot['audience']}\nQuestions:\n{questions}"
+    )
+
+
+def build_fanout_prompt(topic: str, audience: str, seeds: list = None,
+                        n_shots: int = 2) -> str:
+    """Few-shot fan-out prompt.
+
+    Prepends ``n_shots`` worked examples (see FANOUT_SHOTS) before the real
+    task so the model imitates the question style and learning/buying mix.
+    Set ``n_shots=0`` for the original zero-shot behavior.
+    """
+    shots = FANOUT_SHOTS[: max(0, n_shots)]
+    example_block = ""
+    if shots:
+        examples = "\n\n".join(_format_shot(shot) for shot in shots)
+        example_block = (
+            "Here are examples of good question sets for other topics:\n\n"
+            f"{examples}\n\n"
+            "Now do the same for this topic:\n\n"
+        )
+
     seed_block = ""
     if seeds:
         listed = "\n".join(f"- {s}" for s in seeds[:10])
-        seed_block = f"\nAlready covered (do NOT repeat these):\n{listed}\n"
+        seed_block = f"Already covered (do NOT repeat these):\n{listed}\n\n"
+
     return (
-        f"Topic: {topic}\nAudience: {audience}\n{seed_block}\n"
-        "Write 6 additional questions this audience would realistically ask an "
-        "AI assistant about the topic. Mix buying-stage and learning-stage "
-        "questions. One question per line, nothing else."
+        f"{example_block}"
+        f"Topic: {topic}\nAudience: {audience}\n\n"
+        f"{seed_block}"
+        "Write 6 questions this audience would realistically ask an AI assistant "
+        "about the topic. Mix buying-stage and learning-stage questions, matching "
+        "the style of the examples above. One question per line, nothing else."
     )
 
 

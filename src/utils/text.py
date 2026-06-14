@@ -1,14 +1,34 @@
 """Shared text utilities: tokenization, stopwords, sentence splitting.
 
 Tokenization is the backbone of all deterministic retrieval in AISO Copilot, so
-it lives in one place. Thai text has no spaces between words; rather than pull
-in a heavyweight segmenter, Thai runs are tokenized into character trigrams,
-which is a cheap, dependency-free approximation that lets Thai queries match
-Thai passages well enough for coverage classification.
+it lives in one place. Thai text has no spaces between words. Two strategies are
+supported, selected automatically at import time:
+
+  * ``newmm``  \u2014 PyThaiNLP's dictionary-based word segmenter (preferred). Real
+    Thai words make retrieval, gap explanations, and stopword removal cleaner.
+    Optional dependency (``pip install -r requirements-local.txt``).
+  * ``trigram`` \u2014 character-trigram fallback used when PyThaiNLP is not
+    installed. Dependency-free; matches Thai queries against Thai passages well
+    enough for coverage classification without any word segmentation.
+
+The active strategy is exposed as ``THAI_TOKENIZER`` so callers that need to
+reason about Thai terms (e.g. coverage matching) can branch accordingly.
 """
 
 import re
 import unicodedata
+
+try:  # optional: PyThaiNLP word segmentation (see requirements-local.txt)
+    from pythainlp.corpus import thai_stopwords as _pythai_stopwords
+    from pythainlp.tokenize import word_tokenize as _pythai_word_tokenize
+
+    _HAS_PYTHAINLP = True
+    THAI_TOKENIZER = "newmm"
+    _THAI_STOPWORDS = set(_pythai_stopwords())
+except Exception:  # pragma: no cover - exercised only when pythainlp is absent
+    _HAS_PYTHAINLP = False
+    THAI_TOKENIZER = "trigram"
+    _THAI_STOPWORDS = set()
 
 # Latin/digit words (keeps hyphens and apostrophes inside words) OR Thai runs.
 _TOKEN_RE = re.compile(r"[a-z0-9][a-z0-9'\-]*|[\u0e00-\u0e7f]+")
@@ -46,12 +66,40 @@ def _thai_ngrams(run: str, n: int = 3) -> list:
     return [run[i : i + n] for i in range(len(run) - n + 1)]
 
 
+def _thai_tokens(run: str, remove_stopwords: bool = False) -> list:
+    """Tokenize one Thai run. Uses PyThaiNLP ``newmm`` word segmentation when
+    available, else falls back to character trigrams. Both paths optionally
+    drop Thai stopwords (real words for newmm; substring particles for trigram).
+    """
+    if _HAS_PYTHAINLP:
+        words = _pythai_word_tokenize(run, engine="newmm", keep_whitespace=False)
+        out = []
+        for word in words:
+            word = word.strip()
+            if not word or not _THAI_RE.search(word):  # drop stray punctuation
+                continue
+            if remove_stopwords and word in _THAI_STOPWORDS:
+                continue
+            out.append(word)
+        return out
+
+    # trigram fallback (dependency-free)
+    if remove_stopwords:
+        for stop in THAI_STOP_SUBSTRINGS:
+            run = run.replace(stop, " ")
+    tokens = []
+    for part in run.split():
+        tokens.extend(_thai_ngrams(part))
+    return tokens
+
+
 def tokenize(text: str, remove_stopwords: bool = False) -> list:
     """Tokenize mixed Thai/English text.
 
-    Latin words become lowercase word tokens; Thai runs become character
-    trigrams. With ``remove_stopwords=True``, English stopwords are dropped and
-    common Thai function words are stripped before trigramming.
+    Latin words become lowercase word tokens; Thai runs become either real
+    words (PyThaiNLP ``newmm``) or character trigrams (fallback), per
+    ``THAI_TOKENIZER``. With ``remove_stopwords=True``, English and Thai
+    stopwords are dropped.
     """
     if not text:
         return []
@@ -60,12 +108,7 @@ def tokenize(text: str, remove_stopwords: bool = False) -> list:
     for match in _TOKEN_RE.finditer(text):
         token = match.group(0)
         if _THAI_RE.match(token):
-            run = token
-            if remove_stopwords:
-                for stop in THAI_STOP_SUBSTRINGS:
-                    run = run.replace(stop, " ")
-            for part in run.split():
-                tokens.extend(_thai_ngrams(part))
+            tokens.extend(_thai_tokens(token, remove_stopwords))
         else:
             if remove_stopwords and token in STOPWORDS_EN:
                 continue
