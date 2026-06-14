@@ -117,6 +117,59 @@ def main():
         print("\n(Embedding-on sweep skipped — run with AISO_USE_EMBEDDINGS=1 and "
               "sentence-transformers installed to include it.)")
 
+    sweep_thresholds()
+
+
+def sweep_thresholds():
+    """Sweep Covered/Partial cutoffs on the LIVE default config (current blend +
+    whatever embedding state the env is in). Thresholds apply after scoring, so
+    scores are computed once and re-classified — isolating the threshold effect.
+    """
+    from src.config import COVERED_THRESHOLD, PARTIAL_THRESHOLD
+
+    # collect (expected, best_score) once
+    data = []
+    for _, page_html, questions in all_cases():
+        page = extract_content(page_html, "html")
+        chunks = build_chunks(page)
+        items = [{"question": q, "intent": i, "source": "eval"} for q, i, _ in questions]
+        matrix = hc.evaluate_coverage(chunks, items)["coverage_matrix"]
+        for (q, intent, expected), pred in zip(questions, matrix):
+            data.append((expected, pred["score"]))
+
+    def classify(s, cov, par):
+        return "Covered" if s >= cov else ("Partial" if s >= par else "Missing")
+
+    def metrics(cov, par):
+        rows = [(e, classify(s, cov, par)) for e, s in data]
+        n = len(rows)
+        exact = sum(1 for e, p in rows if e == p) / n
+        off2 = sum(1 for e, p in rows if abs(ORD[e] - ORD[p]) == 2)
+        return exact, off2
+
+    cur_exact, cur_off2 = metrics(COVERED_THRESHOLD, PARTIAL_THRESHOLD)
+    print(f"\nThreshold sweep (current {COVERED_THRESHOLD}/{PARTIAL_THRESHOLD} → "
+          f"exact {cur_exact*100:.1f}%, off-by-2 {cur_off2}). cell = exact% / off-by-2")
+    pars = [0.30, 0.35, 0.40, 0.45]
+    print(f"{'cov\\par':>8}" + "".join(f"{p:>10}" for p in pars))
+    best = (cur_exact, -cur_off2, COVERED_THRESHOLD, PARTIAL_THRESHOLD)
+    for cov in [0.45, 0.50, 0.55, 0.60]:
+        cells = ""
+        for par in pars:
+            if par >= cov:
+                cells += f"{'--':>10}"
+                continue
+            e, o = metrics(cov, par)
+            cells += f"{e*100:>6.0f}/{o:<3}"
+            if (e, -o) > (best[0], best[1]):
+                best = (e, -o, cov, par)
+        print(f"{cov:>8}{cells}")
+    if (best[2], best[3]) == (COVERED_THRESHOLD, PARTIAL_THRESHOLD):
+        print("→ current thresholds are already on the optimal plateau; no change warranted.")
+    else:
+        print(f"→ best: {best[2]}/{best[3]} (exact {best[0]*100:.1f}%, off-by-2 {-best[1]}) "
+              "— adopt only if robust, not a single-cell spike.")
+
 
 def _score_emb():
     """Score using the live evaluate_coverage (embeddings active); the lexical

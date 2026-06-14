@@ -58,6 +58,40 @@ the data-backed choice.
 
 Reproduce the embedding sweep: `AISO_USE_EMBEDDINGS=1 python -m evals.run_crosslingual_eval`.
 
+## Update 2 — threshold experiment: no change warranted
+
+The earlier note flagged the Covered/Partial threshold (0.55 / 0.40, calibrated
+monolingual) as the likely next lever, since *deterministic* cross-lingual scores
+clustered low (true-Covered items stuck at 0.44–0.53). Since thresholds apply
+*after* scoring, scores were computed once and re-classified across a grid
+(`sweep_thresholds()` in the harness).
+
+**Embeddings ON (default) — exact% / off-by-2:**
+
+| cov \ par | 0.30 | 0.35 | 0.40 | 0.45 |
+|---|---|---|---|---|
+| 0.45 | 52/2 | 57/2 | 62/3 | — |
+| 0.50 | 57/1 | 62/1 | **67/2** | **67/2** |
+| 0.55 | 57/1 | 62/1 | **67/2 (current)** | **67/2** |
+| 0.60 | 52/0 | 57/0 | 62/1 | 62/1 |
+
+Exact accuracy sits on a **flat 67% plateau** across 0.50–0.55 covered ×
+0.40–0.45 partial — the current 0.55/0.40 is already on it. **No threshold change
+helps.** The reason: multilingual embeddings + the tuned blend lift true-Covered
+items above 0.55, so the low-score clustering that motivated the hypothesis only
+existed in the *deterministic* regime — embeddings fixed it upstream.
+
+**Embeddings OFF (fallback):** a marginal +5pts (0.55/0.45 → 62%) exists, but it
+raises worst-case Covered↔Missing flips (off-by-2: 2→3) and is the less-important
+path now. Not a clean win → not adopted; no separate knob added.
+
+**Decision: thresholds unchanged.** A documented negative result — the weight
+tuning and default embeddings already solved the cross-lingual scoring problem,
+and sliding thresholds on n=21 would be overfitting without benefit.
+
+Reproduce: `AISO_USE_EMBEDDINGS=1 python -m evals.run_crosslingual_eval` (the
+threshold sweep prints at the end).
+
 ## Honest caveats / next levers (not changed here)
 
 1. **Small, subjective set (n=21).** Results are directional. The effect size and
