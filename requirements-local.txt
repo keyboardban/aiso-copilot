@@ -4,8 +4,13 @@
 
 -r requirements.txt
 
-# Local embeddings for hybrid retrieval (downloads a small open model once).
-# Enable with AISO_USE_EMBEDDINGS=1 in .env after installing.
+# Local embeddings for hybrid retrieval. Embeddings are ON by default
+# (AISO_USE_EMBEDDINGS=1) and use a multilingual model for cross-lingual
+# matching — installing this package activates that default automatically; the
+# model downloads once (~470 MB) on first run, then runs offline. Kept here
+# (not in core requirements.txt) because it pulls torch, which is large and can
+# exceed free-tier hosting limits; the app falls back to the deterministic path
+# when it isn't installed, so this stays optional-to-install but default-when-present.
 sentence-transformers>=2.7
 
 # Richer structured-data extraction (microdata / RDFa on real pages).

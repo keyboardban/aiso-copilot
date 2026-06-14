@@ -85,12 +85,18 @@ OPENROUTER_MODELS = (
 OLLAMA_BASE_URL = get_env("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL = get_env("OLLAMA_MODEL")
 
-USE_EMBEDDINGS = get_env("AISO_USE_EMBEDDINGS", "0").lower() in {"1", "true", "yes"}
-EMBEDDING_MODEL_NAME = get_env("AISO_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-# Recommended free model for cross-lingual (e.g. Thai page vs English question)
-# semantic matching. Set AISO_EMBEDDING_MODEL to this when auditing across
-# languages — the default all-MiniLM is English-centric (Check 4).
+# Local embeddings are ON by default — free, local, no API. The default model is
+# MULTILINGUAL so cross-lingual (e.g. Thai page vs English question) semantic
+# matching works out of the box. On first run the model downloads once (~470 MB)
+# from Hugging Face; thereafter it is fully offline. If sentence-transformers is
+# not installed, or the model can't load (offline first run), the analyzer falls
+# back to the deterministic lexical path automatically — embeddings never block.
+# Set AISO_USE_EMBEDDINGS=0 to force the deterministic path.
+USE_EMBEDDINGS = get_env("AISO_USE_EMBEDDINGS", "1").lower() in {"1", "true", "yes"}
 EMBEDDING_MODEL_MULTILINGUAL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+# English-only alternative (smaller/faster, weaker cross-lingual).
+EMBEDDING_MODEL_ENGLISH = "sentence-transformers/all-MiniLM-L6-v2"
+EMBEDDING_MODEL_NAME = get_env("AISO_EMBEDDING_MODEL", EMBEDDING_MODEL_MULTILINGUAL)
 
 # --- Fetching -----------------------------------------------------------------
 REQUEST_TIMEOUT = 15
@@ -114,9 +120,12 @@ COVERAGE_WEIGHTS_CROSSLINGUAL = {"term_overlap": 0.60, "tfidf": 0.25, "bm25": 0.
 # Same, with optional local embeddings active.
 COVERAGE_WEIGHTS_EMB = {"term_overlap": 0.30, "tfidf": 0.25, "bm25": 0.20, "embeddings": 0.25}
 # Cross-lingual question (page language != question language) WITH embeddings:
-# lean on semantic vector similarity, which is the only signal that bridges
-# languages well (Check 4). Lexical signals stay as a small backstop.
-COVERAGE_WEIGHTS_CROSSLINGUAL_EMB = {"term_overlap": 0.15, "tfidf": 0.10, "bm25": 0.10, "embeddings": 0.65}
+# BLEND the two validated cross-lingual signals — term_overlap (explicit glossary
+# bridge) and multilingual embeddings (semantic bridge) — which are complementary.
+# Tuned by evals/run_crosslingual_eval.py: this blend scored exact 67% /
+# answerable-recall 86%, beating both an embedding-heavy blend (52%) and pure
+# lexical overlap-B (57%). See evals/FINDINGS.md.
+COVERAGE_WEIGHTS_CROSSLINGUAL_EMB = {"term_overlap": 0.40, "tfidf": 0.10, "bm25": 0.05, "embeddings": 0.45}
 BM25_SATURATION_K = 6.0  # bm25_sat = score / (score + K), maps raw BM25 to 0..1
 
 # Coverage classification thresholds on the blended 0..1 score.

@@ -37,6 +37,15 @@ CANDIDATES = {
     "overlap-only (1.0/0/0)": {"term_overlap": 1.0, "tfidf": 0.0, "bm25": 0.0},
 }
 
+# Embedding-on cross-lingual blends (only swept when sentence-transformers is
+# available — i.e. run with AISO_USE_EMBEDDINGS=1).
+EMB_CANDIDATES = {
+    "emb-heavy o.15/t.10/b.10/e.65": {"term_overlap": 0.15, "tfidf": 0.10, "bm25": 0.10, "embeddings": 0.65},
+    "emb+overlap o.30/t.10/b.10/e.50": {"term_overlap": 0.30, "tfidf": 0.10, "bm25": 0.10, "embeddings": 0.50},
+    "balanced o.40/t.10/b.05/e.45 (adopted)": {"term_overlap": 0.40, "tfidf": 0.10, "bm25": 0.05, "embeddings": 0.45},
+    "overlap-lead o.45/t.10/b.05/e.40": {"term_overlap": 0.45, "tfidf": 0.10, "bm25": 0.05, "embeddings": 0.40},
+}
+
 
 def _predict(page_html, questions, weights):
     page = extract_content(page_html, "html")
@@ -89,6 +98,44 @@ def main():
     for q, (e, pc, sc), (_, pb, sb) in zip(qs, cur, bst):
         flag = "" if pc == pb else "   <-- changed"
         print(f"  {e:<8} -> {pc:<8}({sc:.2f}) / {pb:<8}({sb:.2f})  {q[:46]}{flag}")
+
+    # embedding-on sweep (only meaningful when embeddings are actually available)
+    from src.retrieval.embedding_retriever import embeddings_backend
+
+    if embeddings_backend():
+        print(f"\nEmbedding-on sweep (model: {embeddings_backend().split('/')[-1]}):")
+        print(header)
+        print("-" * len(header))
+        original = hc.COVERAGE_WEIGHTS_CROSSLINGUAL_EMB
+        for name, weights in EMB_CANDIDATES.items():
+            hc.COVERAGE_WEIGHTS_CROSSLINGUAL_EMB = weights
+            s = _score_emb()
+            print(f"{name:<32}{s['exact']*100:>7.1f}%{s['mae']:>8.2f}"
+                  f"{s['ans_recall']*100:>12.1f}%{s['off2']:>10}")
+        hc.COVERAGE_WEIGHTS_CROSSLINGUAL_EMB = original
+    else:
+        print("\n(Embedding-on sweep skipped — run with AISO_USE_EMBEDDINGS=1 and "
+              "sentence-transformers installed to include it.)")
+
+
+def _score_emb():
+    """Score using the live evaluate_coverage (embeddings active); the lexical
+    weights are ignored because the cross-lingual+embeddings path is used."""
+    rows = []
+    for _, page_html, questions in all_cases():
+        page = extract_content(page_html, "html")
+        chunks = build_chunks(page)
+        items = [{"question": q, "intent": i, "source": "eval"} for q, i, _ in questions]
+        matrix = hc.evaluate_coverage(chunks, items)["coverage_matrix"]
+        for (q, intent, expected), pred in zip(questions, matrix):
+            rows.append((expected, pred["coverage"], pred["score"]))
+    n = len(rows)
+    exact = sum(1 for e, p, _ in rows if e == p) / n
+    mae = sum(abs(ORD[e] - ORD[p]) for e, p, _ in rows) / n
+    answerable = [(e, p) for e, p, _ in rows if e in ("Covered", "Partial")]
+    ans_recall = sum(1 for e, p in answerable if p != "Missing") / len(answerable)
+    off2 = sum(1 for e, p, _ in rows if abs(ORD[e] - ORD[p]) == 2)
+    return {"exact": exact, "mae": mae, "ans_recall": ans_recall, "off2": off2}
 
 
 if __name__ == "__main__":

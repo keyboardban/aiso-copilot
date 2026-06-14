@@ -149,7 +149,7 @@ def evaluate_coverage(chunks: list, questions: list, llm=None) -> dict:
 
     base_method = f"bm25({bm25.backend}) + tfidf({tfidf.backend}) + term_overlap"
     if embeddings.available:
-        base_method += " + local_embeddings"
+        base_method += f" + embeddings({embeddings.model_name.split('/')[-1]})"
 
     chunk_token_sets = [set(tokenize(c["text"])) for c in chunks]
 

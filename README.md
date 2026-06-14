@@ -147,12 +147,15 @@ Hard rules baked into the code:
 No paid APIs, SaaS, crawlers, databases, or hosting anywhere in the core:
 
 - **Fetching/parsing:** requests + BeautifulSoup + trafilatura (all free)
-- **Retrieval:** rank-bm25 + scikit-learn TF-IDF — with **pure-Python fallbacks built
-  in**, so the analyzer even survives a partial install
-- **Thai support:** character-trigram matching (no segmentation service needed)
+- **Retrieval:** hybrid blend of rank-bm25 + scikit-learn TF-IDF + term-overlap —
+  with **pure-Python fallbacks built in**, so the analyzer even survives a partial install
+- **Semantic embeddings:** local sentence-transformers, **on by default** with a
+  free multilingual model (downloads once, then offline); auto-falls-back to the
+  deterministic lexical path if not installed. Install via `requirements-local.txt`.
+- **Thai support:** PyThaiNLP `newmm` word segmentation when installed, else
+  character-trigram matching — plus a deterministic EN↔TH glossary bridge for
+  cross-lingual audits (no translation API)
 - **Storage:** local JSON files (`outputs/`) — no database
-- **Optional extras** (`requirements-local.txt`): local sentence-transformers
-  embeddings (`AISO_USE_EMBEDDINGS=1`), extruct, readability-lxml — still free
 - **Search Console:** CSV upload only — no API, no OAuth, no billing surface at all
 
 ## Sample data

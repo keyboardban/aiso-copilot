@@ -34,6 +34,30 @@ monolingual 0.55 / 0.40 to isolate the weight effect.
 Only the cross-lingual, no-embedding path changed. Monolingual blends
 (`COVERAGE_WEIGHTS`) and the embedding paths are untouched; all 44 tests pass.
 
+## Update — embeddings ON by default (multilingual)
+
+Local embeddings (sentence-transformers, `paraphrase-multilingual-MiniLM-L12-v2`)
+are now the default. The model bridges languages semantically (EN "What is SEO?"
+vs TH "SEO คือ…" cosine ≈ 0.84 vs ≈ -0.06 for an unrelated sentence), which the
+glossary alone can't do. With embeddings on, the cross-lingual blend
+(`COVERAGE_WEIGHTS_CROSSLINGUAL_EMB`) combines BOTH validated signals — they're
+complementary (overlap = exact entity/keyword bridge, embeddings = paraphrase/
+semantics). Re-swept on the same 21 judgments:
+
+| Blend (overlap/tfidf/bm25/emb) | Exact | MAE | Answerable recall |
+|---|---:|---:|---:|
+| emb-heavy 0.15/0.10/0.10/0.65 (old guess) | 52.4% | 0.57 | 78.6% |
+| 0.30/0.10/0.10/0.50 | 61.9% | 0.48 | 78.6% |
+| **0.40/0.10/0.05/0.45 (adopted)** | **66.7%** | **0.43** | **85.7%** |
+| 0.45/0.10/0.05/0.40 | 66.7% | 0.43 | 85.7% |
+
+**Best overall = embeddings + overlap together (67% exact / 86% recall)** — better
+than embeddings-heavy alone, pure-lexical overlap-B (57%), or the original default
+(43%). The embedding-heavy 0.65 blend was a guess; combining the two signals is
+the data-backed choice.
+
+Reproduce the embedding sweep: `AISO_USE_EMBEDDINGS=1 python -m evals.run_crosslingual_eval`.
+
 ## Honest caveats / next levers (not changed here)
 
 1. **Small, subjective set (n=21).** Results are directional. The effect size and
