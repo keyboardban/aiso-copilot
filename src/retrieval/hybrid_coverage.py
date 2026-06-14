@@ -17,6 +17,7 @@ import re
 from src.config import (
     BM25_SATURATION_K,
     COVERAGE_WEIGHTS,
+    COVERAGE_WEIGHTS_CROSSLINGUAL,
     COVERAGE_WEIGHTS_CROSSLINGUAL_EMB,
     COVERAGE_WEIGHTS_EMB,
     COVERED_THRESHOLD,
@@ -201,11 +202,15 @@ def evaluate_coverage(chunks: list, questions: list, llm=None) -> dict:
         # languages semantically without query expansion (Check 4).
         emb_scores = embeddings.score_all(question) if embeddings.available else []
 
-        # Check 4: choose the blend. Cross-lingual + embeddings → lean semantic.
+        # Choose the blend. Cross-lingual + embeddings → lean semantic (Check 4);
+        # cross-lingual without embeddings → COVERAGE_WEIGHTS_CROSSLINGUAL knob
+        # (the eval harness tunes this); else the monolingual default.
         if cross_lingual and emb_scores:
             weights = COVERAGE_WEIGHTS_CROSSLINGUAL_EMB
         elif emb_scores:
             weights = COVERAGE_WEIGHTS_EMB
+        elif cross_lingual:
+            weights = COVERAGE_WEIGHTS_CROSSLINGUAL
         else:
             weights = COVERAGE_WEIGHTS
 

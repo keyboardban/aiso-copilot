@@ -105,6 +105,12 @@ TOP_K_EVIDENCE = 3
 
 # Blend of deterministic signals for per-question coverage (sums to 1.0).
 COVERAGE_WEIGHTS = {"term_overlap": 0.40, "tfidf": 0.35, "bm25": 0.25}
+# Cross-lingual question WITHOUT embeddings. Re-weighted toward term_overlap —
+# the explicitly glossary-bridged signal — because bm25/tfidf on the expanded
+# query proved noisier across languages. Chosen by evals/run_crosslingual_eval.py
+# (overlap-B beat the monolingual blend: exact 57% vs 43%, answerable-recall 79%
+# vs 64% on 21 labeled EN<->TH judgments). See evals/FINDINGS.md.
+COVERAGE_WEIGHTS_CROSSLINGUAL = {"term_overlap": 0.60, "tfidf": 0.25, "bm25": 0.15}
 # Same, with optional local embeddings active.
 COVERAGE_WEIGHTS_EMB = {"term_overlap": 0.30, "tfidf": 0.25, "bm25": 0.20, "embeddings": 0.25}
 # Cross-lingual question (page language != question language) WITH embeddings:
