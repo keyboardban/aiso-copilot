@@ -195,6 +195,9 @@ tests/                    # 32 offline tests
 ```
 
 Architecture details: [PIPELINE_AND_ARCHITECTURE.md](PIPELINE_AND_ARCHITECTURE.md).
+For the full narrative — how it works, what improved, problems solved & open,
+evaluation, roadmap, and an interview script — see
+**[PROJECT_DEEP_DIVE.md](PROJECT_DEEP_DIVE.md)**.
 
 ## Honest limitations
 
