@@ -21,12 +21,12 @@ INTENTS = [
     "content_strategy",
 ]
 
-# The 20 core fan-out templates.
+# The core fan-out templates. Comparison questions are generated separately
+# (see COMPARISON_TEMPLATE / COMPARISON_BASELINES) so the comparison target is
+# always a distinct entity from the topic — never "How is SEO different from SEO?".
 TEMPLATE_QUESTIONS = [
     ("What is {topic}?", "definition"),
     ("How does {topic} work?", "definition"),
-    ("How is {topic} different from SEO?", "comparison"),
-    ("How is {topic} different from traditional search optimization?", "comparison"),
     ("Why is {topic} important for {audience}?", "commercial"),
     ("Who needs {topic}?", "commercial"),
     ("What problems does {topic} solve?", "definition"),
@@ -44,6 +44,39 @@ TEMPLATE_QUESTIONS = [
     ("Does schema markup help {topic}?", "schema"),
     ("What proof points should a page include for {topic}?", "proof"),
 ]
+
+# Comparison questions: filled with a baseline that is guaranteed distinct from
+# the topic (Check 2 — deduplicate entities in comparison tasks).
+COMPARISON_TEMPLATE = "How is {topic} different from {alt}?"
+COMPARISON_BASELINES = [
+    "SEO",
+    "traditional search optimization",
+    "traditional digital marketing",
+    "keyword-based search",
+]
+
+
+def comparison_alts(topic: str, limit: int = 2) -> list:
+    """Return up to ``limit`` comparison baselines distinct from ``topic``.
+
+    A baseline is rejected if it is equal to, contained in, or contains the
+    topic (case-insensitive), so a topic of "SEO" never compares against "SEO".
+    Always returns at least one usable baseline.
+    """
+    topic_norm = (topic or "").strip().lower()
+    alts = []
+    for baseline in COMPARISON_BASELINES:
+        base_norm = baseline.lower()
+        if not topic_norm:
+            alts.append(baseline)
+        elif base_norm != topic_norm and base_norm not in topic_norm and topic_norm not in base_norm:
+            alts.append(baseline)
+        if len(alts) >= limit:
+            break
+    if not alts:  # topic collided with every baseline — fall back to a generic phrase
+        alts = ["other approaches in the same category"]
+    return alts
+
 
 # Entity-aware extras, used only when the placeholder entity was detected.
 LOCATION_TEMPLATES = [

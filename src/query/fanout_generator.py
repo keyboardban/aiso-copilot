@@ -9,9 +9,11 @@ questions; any LLM failure silently leaves the deterministic set intact.
 from src.config import MAX_FANOUT_QUESTIONS
 from src.query.templates import (
     BRAND_TEMPLATES,
+    COMPARISON_TEMPLATE,
     LOCATION_TEMPLATES,
     TEMPLATE_QUESTIONS,
     classify_intent,
+    comparison_alts,
 )
 
 
@@ -63,6 +65,10 @@ def generate_fanout(
     context = {"topic": topic, "audience": audience}
     for template, intent in TEMPLATE_QUESTIONS:
         add(template.format(**context), intent, "template")
+
+    # comparison questions use baselines guaranteed distinct from the topic
+    for alt in comparison_alts(topic, limit=2):
+        add(COMPARISON_TEMPLATE.format(topic=topic, alt=alt), "comparison", "template")
 
     location = _first_or_empty(entities.get("locations"))
     if location:

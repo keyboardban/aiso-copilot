@@ -200,7 +200,7 @@ def _html_to_structure(html: str, url: str = None) -> dict:
         href = a["href"].strip()
         if not href or href.startswith(("javascript:", "mailto:", "tel:")):
             continue
-        raw_links.append({"text": normalize_ws(a.get_text())[:120], "href": href})
+        raw_links.append({"text": normalize_ws(a.get_text(" "))[:120], "href": href})
 
     # strip non-content elements, then pick the densest content root
     for tag in soup.find_all(["script", "style", "noscript", "template", "svg", "iframe", "form", "button"]):
@@ -222,7 +222,9 @@ def _html_to_structure(html: str, url: str = None) -> dict:
         name = el.name
         if name in ("h1", "h2", "h3", "h4"):
             raw_sections.append(current)
-            heading_text = normalize_ws(el.get_text())
+            # separator=" " prevents inline children from mashing together
+            # (e.g. <h2><span>DATA-LED</span><span>CREATIVE-POWERED</span></h2>)
+            heading_text = normalize_ws(el.get_text(" "))
             level = int(name[1])
             if level <= 3 and heading_text:
                 headings[f"h{level}"].append(heading_text)
@@ -233,7 +235,7 @@ def _html_to_structure(html: str, url: str = None) -> dict:
         if name in ("ul", "ol") and el.find_parent(["ul", "ol", "table"]):
             continue
         if name in ("ul", "ol"):
-            items = [normalize_ws(li.get_text()) for li in el.find_all("li", recursive=False)]
+            items = [normalize_ws(li.get_text(" ")) for li in el.find_all("li", recursive=False)]
             text = "\n".join(i for i in items if i)
         else:
             text = normalize_ws(el.get_text(" "))
