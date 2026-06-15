@@ -196,9 +196,11 @@ tests/                    # 32 offline tests
 
 Architecture: [PIPELINE_AND_ARCHITECTURE.md](PIPELINE_AND_ARCHITECTURE.md) (layers)
 · **[ARCHITECTURE_DETAILED.md](ARCHITECTURE_DETAILED.md)** (all 19 pipeline stages
-with per-stage input/output contracts). For the full narrative — how it works,
-what improved, problems solved & open, evaluation, roadmap, and an interview
-script — see **[PROJECT_DEEP_DIVE.md](PROJECT_DEEP_DIVE.md)**.
+with per-stage input/output contracts) · **[CODE_REFERENCE.md](CODE_REFERENCE.md)**
+(every module's task + per-function descriptions, auto-generated from docstrings).
+For the full narrative — how it works, what improved, problems solved & open,
+evaluation, roadmap, and an interview script — see
+**[PROJECT_DEEP_DIVE.md](PROJECT_DEEP_DIVE.md)**.
 
 ## Honest limitations
 
